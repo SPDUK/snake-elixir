@@ -1,3 +1,11 @@
+OpenGL snake game 🐍
+
+`mix deps.get` to install
+
+`mix scenic.run` to run
+
+If it doesn't run you need to install glfw:
+
 Installing on MacOS The easiest way to install on MacOS is to use Homebrew. Just run the following in a terminal:
 
 ```
@@ -30,6 +38,3 @@ Installing on Arch Linux glew and glfw-x11 are available in Extra and Community,
 ```
 sudo pacman -S pkgconf glew glfw-x11
 ```
-
-`mix deps.get` to install
-`mix scenic.run` to run
