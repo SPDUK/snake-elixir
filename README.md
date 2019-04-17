@@ -30,3 +30,6 @@ Installing on Arch Linux glew and glfw-x11 are available in Extra and Community,
 ```
 sudo pacman -S pkgconf glew glfw-x11
 ```
+
+`mix deps.get` to install
+`mix scenic.run` to run
