@@ -5,10 +5,12 @@ defmodule Snake.Scene.Game do
   import Scenic.Primitives, only: [rrect: 3, text: 3]
 
   # Constants
+  @game_over_scene Snake.Scene.GameOver
   @graph Graph.build(font: :roboto, font_size: 36)
   @tile_size 32
   @snake_starting_size 5
   @tile_radius 8
+  @pellet_score 100
 
   # Initialize the game scene
   def init(_arg, opts) do
@@ -21,13 +23,18 @@ defmodule Snake.Scene.Game do
     vp_tile_width = trunc(vp_width / @tile_size)
     vp_tile_height = trunc(vp_height / @tile_size)
 
+    # start a very simple animation timer
+    {:ok, timer} = :timer.send_interval(60, :frame)
+
     snake_start_coords = {
       trunc(vp_tile_width / 2),
       trunc(vp_tile_height / 2)
     }
 
-    # start a very simple animation timer
-    {:ok, timer} = :timer.send_interval(60, :frame)
+    pellet_start_coords = {
+      vp_tile_width - 2,
+      trunc(vp_tile_height / 2)
+    }
 
     # The entire game state will be held here
     state = %{
@@ -40,7 +47,8 @@ defmodule Snake.Scene.Game do
       frame_timer: timer,
       # Game objects
       objects: %{
-        snake: %{body: [snake_start_coords], size: @snake_starting_size, direction: {1, 0}}
+        snake: %{body: [snake_start_coords], size: @snake_starting_size, direction: {1, 0}},
+        pellet: pellet_start_coords
       }
     }
 
@@ -105,6 +113,11 @@ defmodule Snake.Scene.Game do
     end)
   end
 
+  # Pellet is simply a coordinate pair
+  defp draw_object(graph, :pellet, {pellet_x, pellet_y}) do
+    draw_tile(graph, pellet_x, pellet_y, fill: :yellow, id: :pellet)
+  end
+
   # Draw tiles as rounded rectangles to look nice
   defp draw_tile(graph, x, y, opts) do
     tile_opts = Keyword.merge([fill: :white, translate: {x * @tile_size, y * @tile_size}], opts)
@@ -118,10 +131,60 @@ defmodule Snake.Scene.Game do
 
     new_body = Enum.take([new_head_pos | snake.body], snake.size)
 
-    put_in(state, [:objects, :snake, :body], new_body)
+    state
+    |> put_in([:objects, :snake, :body], new_body)
+    |> maybe_eat_pellet(new_head_pos)
+    |> maybe_die()
   end
 
   defp move(%{tile_width: w, tile_height: h}, {pos_x, pos_y}, {vec_x, vec_y}) do
     {rem(pos_x + vec_x + w, w), rem(pos_y + vec_y + h, h)}
+  end
+
+  defp maybe_die(state = %{viewport: vp, objects: %{snake: %{body: snake}}, score: score}) do
+    # If ANY duplicates were removed, this means we overlapped at least once
+    if length(Enum.uniq(snake)) < length(snake) do
+      ViewPort.set_root(vp, {@game_over_scene, score})
+    end
+
+    state
+  end
+
+  # We're on top of a pellet!
+  defp maybe_eat_pellet(state = %{objects: %{pellet: pellet_coords}}, snake_head_coords)
+       when pellet_coords == snake_head_coords do
+    state
+    |> randomize_pellet()
+    |> add_score(@pellet_score)
+    |> grow_snake()
+  end
+
+  # No pellet in sight.
+  defp maybe_eat_pellet(state, _), do: state
+
+  # Place the pellet somewhere in the map. It should not be on top of the snake.
+  defp randomize_pellet(state = %{tile_width: w, tile_height: h}) do
+    pellet_coords = {
+      Enum.random(0..(w - 1)),
+      Enum.random(0..(h - 1))
+    }
+
+    validate_pellet_coords(state, pellet_coords)
+  end
+
+  defp validate_pellet_coords(state = %{objects: %{snake: %{body: snake}}}, coords) do
+    if coords in snake,
+      do: randomize_pellet(state),
+      else: put_in(state, [:objects, :pellet], coords)
+  end
+
+  # Increments the player's score.
+  defp add_score(state, amount) do
+    update_in(state, [:score], &(&1 + amount))
+  end
+
+  # Increments the snake size.
+  defp grow_snake(state) do
+    update_in(state, [:objects, :snake, :size], &(&1 + 1))
   end
 end
