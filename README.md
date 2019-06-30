@@ -1,5 +1,10 @@
 OpenGL snake game 🐍
 
+![snake](snake.gif)
+
+___
+Created using https://github.com/boydm/scenic
+
 `mix deps.get` to install
 
 `mix scenic.run` to run
